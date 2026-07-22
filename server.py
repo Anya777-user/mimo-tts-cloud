@@ -16,19 +16,28 @@ client = OpenAI(api_key=API_KEY, base_url="https://api.xiaomimimo.com/v1")
 @app.route("/api/tts", methods=["GET", "POST"])
 def tts():
     if request.method == "POST" and request.is_json:
-        text = request.json.get("text", "")
+        raw = request.json.get("text", "")
     else:
-        text = request.args.get("text", "")
+        raw = request.args.get("text", "")
 
-    if not text:
+    if not raw:
         return {"error": "text required"}, 400
+
+    # 支持情绪指令: "文本 ||| 情绪描述" → user 指令 + assistant 文本
+    if " ||| " in raw:
+        text, instruction = raw.split(" ||| ", 1)
+        messages = [
+            {"role": "user", "content": instruction.strip()},
+            {"role": "assistant", "content": text.strip()},
+        ]
+    else:
+        messages = [{"role": "assistant", "content": raw.strip()}]
 
     r = client.chat.completions.create(
         model="mimo-v2.5-tts-voiceclone",
-        messages=[{"role": "assistant", "content": text}],
+        messages=messages,
         audio={"format": "wav", "voice": VOICE},
     )
-    # 直接透传 MiMo 的 OpenAI 兼容 JSON 响应
     return {
         "choices": [{
             "message": {
