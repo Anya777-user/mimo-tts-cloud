@@ -1,5 +1,5 @@
-import base64, io, os
-from flask import Flask, request, send_file
+import base64, os
+from flask import Flask, request
 from openai import OpenAI
 
 app = Flask(__name__)
@@ -28,8 +28,16 @@ def tts():
         messages=[{"role": "assistant", "content": text}],
         audio={"format": "wav", "voice": VOICE},
     )
-    audio = base64.b64decode(r.choices[0].message.audio.data)
-    return send_file(io.BytesIO(audio), mimetype="audio/wav")
+    # 直接透传 MiMo 的 OpenAI 兼容 JSON 响应
+    return {
+        "choices": [{
+            "message": {
+                "audio": {
+                    "data": r.choices[0].message.audio.data
+                }
+            }
+        }]
+    }
 
 
 @app.route("/", methods=["GET"])
